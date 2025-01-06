@@ -2,17 +2,20 @@ import os
 import asyncio
 import sys
 import time
+import base64
 from pyrogram import Client, filters, __version__
 from pyrogram.enums import ParseMode, ChatMemberStatus
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, User
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, UserNotParticipant
 
 from bot import Bot
+from datetime import datetime, timedelta
 from config import ADMINS, OWNER_ID
 from helper_func import encode, decode
+from database.database import save_encoded_link, get_channel_by_encoded_link, save_encoded_link2, get_channel_by_encoded_link2
 from database.database import add_user, del_user, full_userbase, present_user, is_admin
-
-
+from plugins.newpost import revoke_invite_after_10_minutes
+        
 #=====================================================================================##
 
 @Bot.on_message(filters.command('start') & filters.private)
@@ -20,29 +23,37 @@ async def start_command(client: Bot, message: Message):
     text = message.text
     user_id = message.from_user.id
     
-    await add_user(user_id)  # Adding user to the database
+    await add_user(user_id)  # Add user to DB
     
     if len(text) > 7:
         try:
             base64_string = text.split(" ", 1)[1]
-
-            if base64_string.startswith("req_"):
-                invite_link = await decode(base64_string[4:])
-                button_text = "🛎️ Request to Join"
-            else:
-                invite_link = await decode(base64_string)
-                button_text = "🔗 Join Channel"
-
-            button = InlineKeyboardMarkup(
-                [[InlineKeyboardButton(button_text, url=invite_link)]]
-            )
+            is_request = base64_string.startswith("req_")
             
-            await message.reply_text(
-                "Here is your link! Click the button below to proceed:",
-                reply_markup=button
+            if is_request:
+                base64_string = base64_string[4:]
+                channel_id = await get_channel_by_encoded_link2(base64_string)
+            else:
+                channel_id = await get_channel_by_encoded_link(base64_string)
+            
+            if not channel_id:
+                return await message.reply_text("⚠️ Invalid or expired invite link.")
+            
+            invite = await client.create_chat_invite_link(
+                chat_id=channel_id,
+                expire_date=datetime.now() + timedelta(minutes=10),
+                creates_join_request=is_request
             )
+
+            button_text = "🛎️ Request to Join" if is_request else "🔗 Join Channel"
+            button = InlineKeyboardMarkup([[InlineKeyboardButton(button_text, url=invite.invite_link)]])
+
+            await message.reply_text("Here is your link! Click below to proceed:", reply_markup=button)
+
+            asyncio.create_task(revoke_invite_after_10_minutes(client, channel_id, invite.invite_link, is_request))
+
         except Exception as e:
-            await message.reply_text("Invalid or expired link.")
+            await message.reply_text("⚠️ Invalid or expired link.")
             print(f"Decoding error: {e}")
     else:
         inline_buttons = InlineKeyboardMarkup(
@@ -56,7 +67,6 @@ async def start_command(client: Bot, message: Message):
             "<b><i>Welcome to the advanced links sharing bot.\nWith this bot, you can share links and keep your channels safe from copyright issues</i></b>",
             reply_markup=inline_buttons
         )
-
         
 #=====================================================================================##
 
