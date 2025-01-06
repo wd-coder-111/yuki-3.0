@@ -3,10 +3,11 @@ import asyncio
 import sys
 import time
 import base64
+from collections import defaultdict
 from pyrogram import Client, filters, __version__
 from pyrogram.enums import ParseMode, ChatMemberStatus
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, User
-from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, UserNotParticipant
+from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated, UserNotParticipant, ChatIdInvalid
 
 from bot import Bot
 from datetime import datetime, timedelta
@@ -20,9 +21,17 @@ from plugins.newpost import revoke_invite_after_10_minutes
 
 @Bot.on_message(filters.command('start') & filters.private)
 async def start_command(client: Bot, message: Message):
-    text = message.text
     user_id = message.from_user.id
-    
+
+    # Check if the user is banned
+    if user_id in user_banned_until:
+        # Check if the ban duration has not expired
+        if datetime.now() < user_banned_until[user_id]:
+            # User is still banned, do not process the command
+            return await message.reply_text("🚫 You are temporarily banned from using commands due to spamming. Try again later.")
+
+    # Proceed with the original functionality if the user is not banned
+    text = message.text
     await add_user(user_id)  # Add user to DB
     
     if len(text) > 7:
@@ -153,3 +162,38 @@ async def help_callback(client: Bot, callback_query):
 async def close_callback(client: Bot, callback_query):
     await callback_query.answer()
     await callback_query.message.delete()
+
+#=====================================================================================##
+
+
+user_message_count = {}
+user_banned_until = {}
+
+MAX_MESSAGES = 3
+TIME_WINDOW = timedelta(seconds=10)  # Capturing frames
+BAN_DURATION = timedelta(hours=1)  # User ko ban rakhne ka time. hours ko minutes karlena
+
+@Bot.on_message(filters.private)
+async def monitor_messages(client: Bot, message: Message):
+    user_id = message.from_user.id
+    now = datetime.now()
+
+    if user_id in ADMINS:
+        return 
+
+    
+    if user_id in user_banned_until and now < user_banned_until[user_id]:
+        await message.reply_text("⚠️ You are temporarily banned from using commands due to spamming. Try again later.")
+        return
+
+    if user_id not in user_message_count:
+        user_message_count[user_id] = []
+
+    user_message_count[user_id].append(now)
+
+    user_message_count[user_id] = [time for time in user_message_count[user_id] if now - time <= TIME_WINDOW]
+
+    if len(user_message_count[user_id]) > MAX_MESSAGES:
+        user_banned_until[user_id] = now + BAN_DURATION
+        await message.reply_text("🚫 You have been temporarily banned for spamming. Try again in 1 hour.")
+        return
