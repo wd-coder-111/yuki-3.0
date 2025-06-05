@@ -1,9 +1,10 @@
-FROM python:3.8-slim-buster
+FROM python:3.9-slim
+
 WORKDIR /app
 
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+# Add this line to install git
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+COPY requirements.txt .
 
-CMD python3 main.py
+RUN pip install --no-cache-dir -r requirements.txt
