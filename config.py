@@ -4,20 +4,20 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 #Recommended
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "0")
-APP_ID = int(os.environ.get("APP_ID", "0"))
-API_HASH = os.environ.get("API_HASH", "0")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "7416135458:AAHAWQeM7c_vgTIuZhn66Q_LL-R3LJFJZgM")
+APP_ID = int(os.environ.get("APP_ID", "28682747"))
+API_HASH = os.environ.get("API_HASH", "067e7c3e7d263586954424616284896c")
 
 ##---------------------------------------------------------------------------------------------------
 
 #Main 
-OWNER_ID = int(os.environ.get("OWNER_ID", "5090651635"))
-PORT = os.environ.get("PORT", "8010")
+OWNER_ID = int(os.environ.get("OWNER_ID", "7159454821"))
+PORT = os.environ.get("PORT", "8080")
 
 ##---------------------------------------------------------------------------------------------------
 
 #Database
-DB_URI = os.environ.get("DATABASE_URL", "0")
+DB_URI = os.environ.get("DATABASE_URL", "mongodb+srv://audiohub003:I1XEGF8RRkayGw9p@cluster0.qizsh6j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 DB_NAME = os.environ.get("DATABASE_NAME", "links-sharing")
 
 ##---------------------------------------------------------------------------------------------------
